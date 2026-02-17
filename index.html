@@ -103,45 +103,59 @@
 </div>
 
 <script>
-    // Initialize Gun.js with a relay peer
-    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    // 1. Initialize Gun.js with multiple relay peers for high reliability
+    // If one server is down, the others will sync the bid!
+    const gun = Gun([
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://gunjs.herokuapp.com/gun',
+        'https://gun-relay.herokuapp.com/gun',
+        'https://peer.wall.org/gun'
+    ]);
     
-    // Unique key for your specific auction session
+    // 2. Access the auction room
     const auction = gun.get('ipl-auction-room-2026-v1');
 
     let localPrice = 0;
 
-    // 1. LISTEN for live updates
+    // 3. LISTEN for live updates from other users
     auction.get('state').on((data) => {
         if (data) {
             localPrice = data.price || 0;
-            const formattedPrice = data.price.toLocaleString('en-IN');
+            const formattedPrice = Number(data.price).toLocaleString('en-IN');
             document.getElementById('displayPrice').innerText = "₹ " + formattedPrice;
             document.getElementById('displayBidder').innerText = data.bidder || "Waiting for Bids...";
+            
+            // Visual feedback when a bid is received
+            document.getElementById('displayPrice').style.color = '#44ebf1';
+            setTimeout(() => {
+                document.getElementById('displayPrice').style.color = 'white';
+            }, 500);
         }
     });
 
-    // 2. UPDATE state on bid
+    // 4. FUNCTION to place a bid
     function placeBid(teamName) {
         const increment = 1000000; // 10 Lakhs
         const newPrice = localPrice + increment;
         
+        // This 'put' command sends the data to the peers instantly
         auction.get('state').put({
             price: newPrice,
             bidder: teamName + " is leading!"
         });
     }
 
-    // 3. RESET logic
+    // 5. RESET logic (Updates for everyone)
     function resetAuction() {
-        if(confirm("This will reset the price to 0 for all participants. Continue?")) {
-            auction.get('state').put({ 
-                price: 0, 
-                bidder: "Auction Restarted" 
+        if(confirm("This will reset the price to 0 for EVERYONE. Continue?")) {
+            auction.get('state').put({
+                price: 0,
+                bidder: "Auction Reset - Waiting for Bids..."
             });
         }
     }
 </script>
 
 </body>
+
 </html>
