@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Live Auction Sync</title>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #011627; 
+            color: white; 
+            text-align: center; 
+            padding: 20px; 
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .dashboard { 
+            background: #0b1e33; 
+            padding: 30px; 
+            border-radius: 20px; 
+            border: 2px solid #1e3a5f; 
+            max-width: 500px; 
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); 
+        }
+        h2 { margin-top: 0; color: #44ebf1; }
+        .price { 
+            font-size: clamp(2.5rem, 8vw, 4rem); 
+            color: #f1c40f; 
+            margin: 10px 0; 
+            font-weight: bold; 
+        }
+        .current-bidder { 
+            font-size: 1.5rem; 
+            color: #ffffff; 
+            min-height: 40px; 
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        .team-grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 12px; 
+        }
+        .mi-btn { grid-column: span 2; }
+        .btn { 
+            padding: 18px; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            font-size: 1rem; 
+            color: white; 
+            transition: transform 0.1s, opacity 0.2s; 
+            text-transform: uppercase; 
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn:active { transform: scale(0.95); }
+        
+        /* Team Colors */
+        .csk { background: #fdb913; color: #004ba0; } 
+        .rcb { background: #d11d26; } 
+        .rr  { background: #ea1a85; } 
+        .kkr { background: #3a225d; color: #f1c40f; } 
+        .mi  { background: #004ba0; }
+        
+        .reset { 
+            margin-top: 30px; 
+            background: none; 
+            border: 1px solid #333; 
+            color: #666; 
+            cursor: pointer; 
+            font-size: 12px; 
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .reset:hover { color: #ff4757; border-color: #ff4757; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h2 id="roomTitle">IPL Auction: Room 1</h2>
+    <div class="current-bidder" id="displayBidder">Waiting for Bids...</div>
+    <div class="price" id="displayPrice">₹ 0</div>
+    <p style="color: #888; font-size: 0.8rem; margin-bottom: 20px;">Every bid adds 10 Lakhs</p>
+
+    <div class="team-grid">
+        <button class="btn csk" onclick="placeBid('CSK')">CSK Bid</button>
+        <button class="btn rcb" onclick="placeBid('RCB')">RCB Bid</button>
+        <button class="btn rr" onclick="placeBid('RR')">RR Bid</button>
+        <button class="btn kkr" onclick="placeBid('KKR')">KKR Bid</button>
+        <button class="btn mi mi-btn" onclick="placeBid('MI')">MI Bid</button>
+    </div>
+    
+    <button class="reset" onclick="resetAuction()">Reset for Everyone</button>
+</div>
+
+<script>
+    // Initialize Gun.js with a relay peer
+    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    
+    // Unique key for your specific auction session
+    const auction = gun.get('ipl-auction-room-2026-v1');
+
+    let localPrice = 0;
+
+    // 1. LISTEN for live updates
+    auction.get('state').on((data) => {
+        if (data) {
+            localPrice = data.price || 0;
+            const formattedPrice = data.price.toLocaleString('en-IN');
+            document.getElementById('displayPrice').innerText = "₹ " + formattedPrice;
+            document.getElementById('displayBidder').innerText = data.bidder || "Waiting for Bids...";
+        }
+    });
+
+    // 2. UPDATE state on bid
+    function placeBid(teamName) {
+        const increment = 1000000; // 10 Lakhs
+        const newPrice = localPrice + increment;
+        
+        auction.get('state').put({
+            price: newPrice,
+            bidder: teamName + " is leading!"
+        });
+    }
+
+    // 3. RESET logic
+    function resetAuction() {
+        if(confirm("This will reset the price to 0 for all participants. Continue?")) {
+            auction.get('state').put({ 
+                price: 0, 
+                bidder: "Auction Restarted" 
+            });
+        }
+    }
+</script>
+
+</body>
+</html>
